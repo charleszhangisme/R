@@ -137,7 +137,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1000px;
+            min-width: 1200px;
         }
 
         th, td {
@@ -152,6 +152,7 @@
             color: #374151;
             position: sticky;
             top: 0;
+            font-size: 14px;
         }
 
         tbody tr:nth-child(even) {
@@ -179,17 +180,26 @@
         }
 
         .notice {
-            background-color: #fef3c7;
-            border: 1px solid #fbbf24;
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 24px;
-            color: #92400e;
+            color: #1e40af;
         }
 
         .notice strong {
             display: block;
             margin-bottom: 8px;
+        }
+
+        .notice ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .notice li {
+            margin: 4px 0;
         }
 
         @media (max-width: 768px) {
@@ -235,8 +245,14 @@
         <h1>基金溢价率计算工具</h1>
 
         <div class="notice">
-            <strong>💡 使用提示：</strong>
-            输入基金代码（如：161725）添加基金。基金代码可在天天基金网等平台查询。
+            <strong>💡 使用说明：</strong>
+            <ul>
+                <li>输入基金代码（如：161725）添加基金</li>
+                <li>数据来源：天天基金网</li>
+                <li>溢价率 = (估算净值 - 最新净值) / 最新净值 × 100%</li>
+                <li>正溢价率（红色）表示估算净值高于最新净值</li>
+                <li>负溢价率（绿色）表示估算净值低于最新净值</li>
+            </ul>
         </div>
 
         <div class="input-section">
@@ -265,12 +281,10 @@
                         <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>基金代码</th>
                         <th>基金名称</th>
-                        <th>现价</th>
-                        <th>前一个交易日净值</th>
-                        <th>溢价率(前净值)</th>
                         <th>估算净值</th>
-                        <th>溢价率(估算)</th>
-                        <th>净值日期</th>
+                        <th>最新净值</th>
+                        <th>溢价率</th>
+                        <th>估算时间</th>
                     </tr>
                 </thead>
                 <tbody id="fundTableBody">
@@ -366,26 +380,24 @@
 
             if (currentFetchResolver && data && data.fundcode) {
                 try {
-                    const currentPrice = parseFloat(data.gsz || 0);
-                    const lastNetValue = parseFloat(data.dwjz || 0);
+                    // 估算净值 (gsz) - 盘中实时估算的净值
                     const estimatedNetValue = parseFloat(data.gsz || 0);
+                    // 最新净值 (dwjz) - 前一个交易日收盘净值
+                    const latestNetValue = parseFloat(data.dwjz || 0);
                     
-                    const lastNetPremiumRate = lastNetValue > 0 
-                        ? ((currentPrice - lastNetValue) / lastNetValue * 100).toFixed(2) 
-                        : 0;
-                    const estimatedPremiumRate = estimatedNetValue > 0 
-                        ? ((currentPrice - estimatedNetValue) / estimatedNetValue * 100).toFixed(2) 
+                    // 计算溢价率 = (估算净值 - 最新净值) / 最新净值 × 100%
+                    const premiumRate = latestNetValue > 0 
+                        ? ((estimatedNetValue - latestNetValue) / latestNetValue * 100).toFixed(2) 
                         : 0;
 
                     const fund = {
                         code: data.fundcode,
                         name: data.name,
-                        currentPrice: currentPrice,
-                        lastNetValue: lastNetValue,
-                        lastNetPremiumRate: parseFloat(lastNetPremiumRate),
                         estimatedNetValue: estimatedNetValue,
-                        estimatedPremiumRate: parseFloat(estimatedPremiumRate),
-                        netValueDate: data.gztime ? data.gztime.split(' ')[0] : ''
+                        latestNetValue: latestNetValue,
+                        premiumRate: parseFloat(premiumRate),
+                        // 估算净值更新时间（格式：HH:MM:SS）
+                        estimateTime: data.gztime ? data.gztime.split(' ')[1] || data.gztime : ''
                     };
                     
                     currentFetchResolver(fund);
@@ -479,26 +491,22 @@
             const tbody = document.getElementById('fundTableBody');
             
             if (funds.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><strong>暂无基金数据</strong><p>请在上方输入基金代码添加基金</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><strong>暂无基金数据</strong><p>请在上方输入基金代码添加基金</p></td></tr>';
                 return;
             }
 
             const html = funds.map(function(fund) {
-                const lastNetClass = fund.lastNetPremiumRate >= 0 ? 'positive' : 'negative';
-                const estimatedClass = fund.estimatedPremiumRate >= 0 ? 'positive' : 'negative';
-                const lastNetSign = fund.lastNetPremiumRate >= 0 ? '+' : '';
-                const estimatedSign = fund.estimatedPremiumRate >= 0 ? '+' : '';
+                const premiumClass = fund.premiumRate >= 0 ? 'positive' : 'negative';
+                const premiumSign = fund.premiumRate >= 0 ? '+' : '';
                 
                 return '<tr>' +
                     '<td><input type="checkbox" class="fund-checkbox" data-code="' + fund.code + '"></td>' +
                     '<td><strong>' + fund.code + '</strong></td>' +
                     '<td>' + fund.name + '</td>' +
-                    '<td>' + fund.currentPrice.toFixed(4) + '</td>' +
-                    '<td>' + fund.lastNetValue.toFixed(4) + '</td>' +
-                    '<td class="' + lastNetClass + '">' + lastNetSign + fund.lastNetPremiumRate.toFixed(2) + '%</td>' +
                     '<td>' + fund.estimatedNetValue.toFixed(4) + '</td>' +
-                    '<td class="' + estimatedClass + '">' + estimatedSign + fund.estimatedPremiumRate.toFixed(2) + '%</td>' +
-                    '<td>' + fund.netValueDate + '</td>' +
+                    '<td>' + fund.latestNetValue.toFixed(4) + '</td>' +
+                    '<td class="' + premiumClass + '">' + premiumSign + fund.premiumRate.toFixed(2) + '%</td>' +
+                    '<td>' + fund.estimateTime + '</td>' +
                     '</tr>';
             }).join('');
 
