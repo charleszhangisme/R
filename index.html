@@ -263,35 +263,11 @@
         let autoRefreshTimer = null;
         let isAutoRefreshing = false;
 
-        // 新浪财经实时行情API回调函数
-        window.getStockPrice = function(data) {
-            if (window.priceResolver) {
-                if (data && data.length > 0) {
-                    const info = data[0];
-                    window.priceResolver({
-                        currentPrice: parseFloat(info[3]) || 0, // 现价
-                        name: info[1] // 股票名称
-                    });
-                } else {
-                    window.priceResolver(null);
-                }
-                window.priceResolver = null;
-            }
-        };
-
-        // 天天基金净值API回调函数
+        // 天天基金API回调
         window.jsonpgz = function(data) {
-            if (window.fundResolver) {
-                if (data && data.fundcode) {
-                    window.fundResolver({
-                        latestNetValue: parseFloat(data.dwjz) || 0,
-                        netValueDate: data.gzrq || '',
-                        name: data.name
-                    });
-                } else {
-                    window.fundResolver(null);
-                }
-                window.fundResolver = null;
+            if (window.fundCallback) {
+                window.fundCallback(data);
+                window.fundCallback = null;
             }
         };
 
@@ -311,52 +287,48 @@
             localStorage.setItem('fundList', JSON.stringify(funds));
         }
 
-        // 获取场内实时价格（使用新浪财经API）
-        function fetchRealTimePrice(code) {
+        // 从天天基金获取数据（估算净值，非场内现价）
+        function fetchFundFromEastMoney(code) {
             return new Promise(function(resolve, reject) {
-                window.priceResolver = resolve;
-                
                 const timeout = setTimeout(function() {
-                    window.priceResolver = null;
-                    reject(new Error('价格获取超时'));
-                }, 8000);
+                    reject(new Error('超时'));
+                }, 10000);
 
-                var script = document.createElement('script');
-                script.src = 'https://hq.sinajs.cn/list=sh' + code + ',sz' + code;
-                script.onload = function() {
+                window.fundCallback = function(data) {
                     clearTimeout(timeout);
-                };
-                script.onerror = function() {
-                    clearTimeout(timeout);
-                    window.priceResolver = null;
-                    reject(new Error('价格获取失败'));
-                };
-                
-                document.head.appendChild(script);
-            });
-        }
+                    if (data && data.fundcode) {
+                        const estimatedPrice = parseFloat(data.gsz || 0);
+                        const latestNetValue = parseFloat(data.dwjz || 0);
+                        const premiumRate = latestNetValue > 0 
+                            ? ((estimatedPrice - latestNetValue) / latestNetValue * 100).toFixed(2)
+                            : 0;
 
-        // 获取基金净值（使用天天基金API）
-        function fetchFundNetValue(code) {
-            return new Promise(function(resolve, reject) {
-                window.fundResolver = resolve;
-                
-                var timeout = setTimeout(function() {
-                    window.fundResolver = null;
-                    reject(new Error('净值获取超时'));
-                }, 8000);
+                        let netValueDate = '';
+                        if (data.gztime) {
+                            const parts = data.gztime.split(' ');
+                            netValueDate = parts[0];
+                        }
 
-                var script = document.createElement('script');
+                        resolve({
+                            code: data.fundcode,
+                            name: data.name,
+                            currentPrice: estimatedPrice,
+                            latestNetValue: latestNetValue,
+                            premiumRate: parseFloat(premiumRate),
+                            netValueDate: netValueDate,
+                            note: '现价为估算值'
+                        });
+                    } else {
+                        reject(new Error('数据格式错误'));
+                    }
+                };
+
+                const script = document.createElement('script');
                 script.src = 'https://fundgz.1234567.com.cn/js/' + code + '.js?rt=' + Date.now();
-                script.onload = function() {
-                    clearTimeout(timeout);
-                };
                 script.onerror = function() {
                     clearTimeout(timeout);
-                    window.fundResolver = null;
-                    reject(new Error('净值获取失败'));
+                    reject(new Error('脚本加载失败'));
                 };
-                
                 document.head.appendChild(script);
             });
         }
@@ -376,39 +348,13 @@
             }
 
             try {
-                // 同时获取实时价格和净值
-                const [priceData, netValueData] = await Promise.all([
-                    fetchRealTimePrice(code).catch(function() { return null; }),
-                    fetchFundNetValue(code)
-                ]);
-
-                if (!netValueData) {
-                    alert('获取基金净值失败，请检查基金代码是否正确！');
-                    return;
+                const fund = await fetchFundFromEastMoney(code);
+                if (fund) {
+                    funds.push(fund);
+                    saveToStorage();
+                    renderFundTable();
+                    input.value = '';
                 }
-
-                const currentPrice = priceData ? priceData.currentPrice : 0;
-                const latestNetValue = netValueData.latestNetValue;
-                
-                // 计算溢价率 = (现价 - 最新净值) / 最新净值 × 100%
-                const premiumRate = latestNetValue > 0 && currentPrice > 0
-                    ? ((currentPrice - latestNetValue) / latestNetValue * 100).toFixed(2)
-                    : 0;
-
-                const fund = {
-                    code: code,
-                    name: netValueData.name || priceData?.name || '',
-                    currentPrice: currentPrice,
-                    latestNetValue: latestNetValue,
-                    premiumRate: parseFloat(premiumRate),
-                    netValueDate: netValueData.netValueDate
-                };
-
-                funds.push(fund);
-                saveToStorage();
-                renderFundTable();
-                input.value = '';
-                
             } catch (error) {
                 console.error('添加基金失败:', error);
                 alert('获取基金数据失败，请检查基金代码是否正确！');
@@ -423,24 +369,9 @@
 
             for (let i = 0; i < funds.length; i++) {
                 try {
-                    const [priceData, netValueData] = await Promise.all([
-                        fetchRealTimePrice(funds[i].code).catch(function() { return null; }),
-                        fetchFundNetValue(funds[i].code)
-                    ]);
-
-                    if (netValueData) {
-                        const currentPrice = priceData ? priceData.currentPrice : funds[i].currentPrice;
-                        const latestNetValue = netValueData.latestNetValue;
-                        
-                        const premiumRate = latestNetValue > 0 && currentPrice > 0
-                            ? ((currentPrice - latestNetValue) / latestNetValue * 100).toFixed(2)
-                            : 0;
-
-                        funds[i].name = netValueData.name || funds[i].name;
-                        funds[i].currentPrice = currentPrice;
-                        funds[i].latestNetValue = latestNetValue;
-                        funds[i].premiumRate = parseFloat(premiumRate);
-                        funds[i].netValueDate = netValueData.netValueDate;
+                    const newData = await fetchFundFromEastMoney(funds[i].code);
+                    if (newData) {
+                        funds[i] = newData;
                     }
                 } catch (error) {
                     console.error('刷新基金 ' + funds[i].code + ' 失败:', error);
@@ -516,7 +447,7 @@
                     '<td><input type="checkbox" class="fund-checkbox" data-code="' + fund.code + '"></td>' +
                     '<td><strong>' + fund.code + '</strong></td>' +
                     '<td>' + fund.name + '</td>' +
-                    '<td>' + (fund.currentPrice > 0 ? fund.currentPrice.toFixed(4) : '-') + '</td>' +
+                    '<td>' + (fund.currentPrice &gt; 0 ? fund.currentPrice.toFixed(4) : '-') + '</td>' +
                     '<td>' + fund.latestNetValue.toFixed(4) + '</td>' +
                     '<td class="' + premiumClass + '">' + premiumSign + fund.premiumRate.toFixed(2) + '%</td>' +
                     '<td>' + fund.netValueDate + '</td>' +
