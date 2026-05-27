@@ -50,7 +50,7 @@
    你会看到：`访问地址: http://localhost:5000`
 
 3. **打开浏览器**：
-   - 访问 `http://localhost:5000`
+   - 访问 `http://localhost:5001`
    - 开始使用！
 
 ### 功能特点：
