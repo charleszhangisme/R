@@ -172,20 +172,10 @@
             font-weight: 600;
         }
 
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: #6b7280;
-        }
-
         .empty-state {
             text-align: center;
             padding: 50px;
             color: #6b7280;
-        }
-
-        .empty-state p {
-            margin-top: 10px;
         }
 
         .notice {
@@ -293,6 +283,9 @@
         let funds = [];
         let autoRefreshTimer = null;
         let isAutoRefreshing = false;
+        let currentFetchResolver = null;
+        let currentFetchRejecter = null;
+        let currentFetchTimeout = null;
 
         function loadFromStorage() {
             const stored = localStorage.getItem('fundList');
@@ -315,7 +308,7 @@
                 return;
             }
 
-            if (funds.some(f => f.code === code)) {
+            if (funds.some(function(f) { return f.code === code; })) {
                 alert('该基金已在列表中！');
                 return;
             }
@@ -334,74 +327,85 @@
             }
         }
 
-        async function fetchFundData(code) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'jsonpCallback_' + Date.now();
-                
-                window[callbackName] = function(data) {
-                    try {
-                        if (data && data.fundcode) {
-                            const currentPrice = parseFloat(data.gsz || 0);
-                            const lastNetValue = parseFloat(data.dwjz || 0);
-                            const estimatedNetValue = parseFloat(data.gsz || 0);
-                            
-                            const lastNetPremiumRate = lastNetValue > 0 
-                                ? ((currentPrice - lastNetValue) / lastNetValue * 100).toFixed(2) 
-                                : 0;
-                            const estimatedPremiumRate = estimatedNetValue > 0 
-                                ? ((currentPrice - estimatedNetValue) / estimatedNetValue * 100).toFixed(2) 
-                                : 0;
+        function fetchFundData(code) {
+            return new Promise(function(resolve, reject) {
+                if (currentFetchTimeout) {
+                    clearTimeout(currentFetchTimeout);
+                }
 
-                            const fund = {
-                                code: data.fundcode,
-                                name: data.name,
-                                currentPrice: currentPrice,
-                                lastNetValue: lastNetValue,
-                                lastNetPremiumRate: parseFloat(lastNetPremiumRate),
-                                estimatedNetValue: estimatedNetValue,
-                                estimatedPremiumRate: parseFloat(estimatedPremiumRate),
-                                netValueDate: data.gztime ? data.gztime.split(' ')[0] : ''
-                            };
-                            
-                            delete window[callbackName];
-                            if (script.parentNode) {
-                                script.parentNode.removeChild(script);
-                            }
-                            
-                            resolve(fund);
-                        } else {
-                            delete window[callbackName];
-                            reject(new Error('基金数据无效'));
-                        }
-                    } catch (error) {
-                        delete window[callbackName];
-                        reject(error);
-                    }
-                };
+                currentFetchResolver = resolve;
+                currentFetchRejecter = reject;
 
-                const script = document.createElement('script');
-                script.src = 'https://fundgz.1234567.com.cn/js/' + code + '.js?rt=' + Date.now() + '&callback=' + callbackName;
+                currentFetchTimeout = setTimeout(function() {
+                    currentFetchResolver = null;
+                    currentFetchRejecter = null;
+                    reject(new Error('请求超时'));
+                }, 10000);
+
+                var script = document.createElement('script');
+                script.src = 'https://fundgz.1234567.com.cn/js/' + code + '.js?rt=' + Date.now();
+                script.id = 'fund_script_' + code;
                 script.onerror = function() {
-                    delete window[callbackName];
+                    if (currentFetchRejecter) {
+                        currentFetchRejecter(new Error('获取基金数据失败'));
+                    }
+                    currentFetchResolver = null;
+                    currentFetchRejecter = null;
                     if (script.parentNode) {
                         script.parentNode.removeChild(script);
                     }
-                    reject(new Error('获取基金数据失败'));
                 };
-
-                setTimeout(function() {
-                    if (window[callbackName]) {
-                        delete window[callbackName];
-                        if (script.parentNode) {
-                            script.parentNode.removeChild(script);
-                        }
-                        reject(new Error('请求超时'));
-                    }
-                }, 10000);
-
                 document.head.appendChild(script);
             });
         }
+
+        window.jsonpgz = function(data) {
+            if (currentFetchTimeout) {
+                clearTimeout(currentFetchTimeout);
+            }
+
+            if (currentFetchResolver && data && data.fundcode) {
+                try {
+                    const currentPrice = parseFloat(data.gsz || 0);
+                    const lastNetValue = parseFloat(data.dwjz || 0);
+                    const estimatedNetValue = parseFloat(data.gsz || 0);
+                    
+                    const lastNetPremiumRate = lastNetValue > 0 
+                        ? ((currentPrice - lastNetValue) / lastNetValue * 100).toFixed(2) 
+                        : 0;
+                    const estimatedPremiumRate = estimatedNetValue > 0 
+                        ? ((currentPrice - estimatedNetValue) / estimatedNetValue * 100).toFixed(2) 
+                        : 0;
+
+                    const fund = {
+                        code: data.fundcode,
+                        name: data.name,
+                        currentPrice: currentPrice,
+                        lastNetValue: lastNetValue,
+                        lastNetPremiumRate: parseFloat(lastNetPremiumRate),
+                        estimatedNetValue: estimatedNetValue,
+                        estimatedPremiumRate: parseFloat(estimatedPremiumRate),
+                        netValueDate: data.gztime ? data.gztime.split(' ')[0] : ''
+                    };
+                    
+                    currentFetchResolver(fund);
+                } catch (error) {
+                    if (currentFetchRejecter) {
+                        currentFetchRejecter(error);
+                    }
+                }
+            }
+            
+            currentFetchResolver = null;
+            currentFetchRejecter = null;
+            
+            var scripts = document.querySelectorAll('script[id^="fund_script_"]');
+            scripts.forEach(function(s) {
+                if (s.parentNode) {
+                    s.parentNode.removeChild(s);
+                }
+            });
+        };
 
         async function refreshAllFunds() {
             if (funds.length === 0) {
