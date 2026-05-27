@@ -1,11 +1,11 @@
 
-&lt;!DOCTYPE html&gt;
-&lt;html lang="zh-CN"&gt;
-&lt;head&gt;
-    &lt;meta charset="UTF-8"&gt;
-    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
-    &lt;title&gt;基金溢价率计算工具&lt;/title&gt;
-    &lt;style&gt;
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金溢价率计算工具</title>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -188,6 +188,20 @@
             margin-top: 10px;
         }
 
+        .notice {
+            background-color: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            color: #92400e;
+        }
+
+        .notice strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -224,58 +238,62 @@
                 width: 100%;
             }
         }
-    &lt;/style&gt;
-&lt;/head&gt;
-&lt;body&gt;
-    &lt;div class="container"&gt;
-        &lt;h1&gt;基金溢价率计算工具&lt;/h1&gt;
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>基金溢价率计算工具</h1>
 
-        &lt;div class="input-section"&gt;
-            &lt;input type="text" id="fundCode" placeholder="请输入基金代码（如：161725）" maxlength="10"&gt;
-            &lt;button class="btn btn-primary" onclick="addFund()"&gt;添加&lt;/button&gt;
-        &lt;/div&gt;
+        <div class="notice">
+            <strong>💡 使用提示：</strong>
+            输入基金代码（如：161725）添加基金。基金代码可在天天基金网等平台查询。
+        </div>
 
-        &lt;div class="action-buttons"&gt;
-            &lt;button class="btn btn-success" onclick="refreshAllFunds()"&gt;刷新&lt;/button&gt;
-            &lt;button class="btn btn-danger" onclick="deleteSelectedFunds()"&gt;删除&lt;/button&gt;
-            &lt;div class="auto-refresh-section"&gt;
-                &lt;select id="refreshInterval"&gt;
-                    &lt;option value="10000"&gt;10秒&lt;/option&gt;
-                    &lt;option value="30000"&gt;30秒&lt;/option&gt;
-                    &lt;option value="60000" selected&gt;1分钟&lt;/option&gt;
-                    &lt;option value="300000"&gt;5分钟&lt;/option&gt;
-                &lt;/select&gt;
-                &lt;button class="btn btn-warning" id="autoRefreshBtn" onclick="toggleAutoRefresh()"&gt;自动刷新&lt;/button&gt;
-            &lt;/div&gt;
-        &lt;/div&gt;
+        <div class="input-section">
+            <input type="text" id="fundCode" placeholder="请输入基金代码（如：161725）" maxlength="10">
+            <button class="btn btn-primary" onclick="addFund()">添加</button>
+        </div>
 
-        &lt;div class="table-container"&gt;
-            &lt;table&gt;
-                &lt;thead&gt;
-                    &lt;tr&gt;
-                        &lt;th&gt;&lt;input type="checkbox" id="selectAll" onclick="toggleSelectAll()"&gt;&lt;/th&gt;
-                        &lt;th&gt;基金代码&lt;/th&gt;
-                        &lt;th&gt;基金名称&lt;/th&gt;
-                        &lt;th&gt;现价&lt;/th&gt;
-                        &lt;th&gt;前一个交易日净值&lt;/th&gt;
-                        &lt;th&gt;溢价率(前净值)&lt;/th&gt;
-                        &lt;th&gt;估算净值&lt;/th&gt;
-                        &lt;th&gt;溢价率(估算)&lt;/th&gt;
-                        &lt;th&gt;净值日期&lt;/th&gt;
-                    &lt;/tr&gt;
-                &lt;/thead&gt;
-                &lt;tbody id="fundTableBody"&gt;
-                &lt;/tbody&gt;
-            &lt;/table&gt;
-        &lt;/div&gt;
-    &lt;/div&gt;
+        <div class="action-buttons">
+            <button class="btn btn-success" onclick="refreshAllFunds()">刷新</button>
+            <button class="btn btn-danger" onclick="deleteSelectedFunds()">删除</button>
+            <div class="auto-refresh-section">
+                <select id="refreshInterval">
+                    <option value="10000">10秒</option>
+                    <option value="30000">30秒</option>
+                    <option value="60000" selected>1分钟</option>
+                    <option value="300000">5分钟</option>
+                </select>
+                <button class="btn btn-warning" id="autoRefreshBtn" onclick="toggleAutoRefresh()">自动刷新</button>
+            </div>
+        </div>
 
-    &lt;script&gt;
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                        <th>基金代码</th>
+                        <th>基金名称</th>
+                        <th>现价</th>
+                        <th>前一个交易日净值</th>
+                        <th>溢价率(前净值)</th>
+                        <th>估算净值</th>
+                        <th>溢价率(估算)</th>
+                        <th>净值日期</th>
+                    </tr>
+                </thead>
+                <tbody id="fundTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
         let funds = [];
         let autoRefreshTimer = null;
         let isAutoRefreshing = false;
 
-        // 从localStorage加载数据
         function loadFromStorage() {
             const stored = localStorage.getItem('fundList');
             if (stored) {
@@ -284,12 +302,10 @@
             }
         }
 
-        // 保存到localStorage
         function saveToStorage() {
             localStorage.setItem('fundList', JSON.stringify(funds));
         }
 
-        // 添加基金
         async function addFund() {
             const input = document.getElementById('fundCode');
             const code = input.value.trim();
@@ -299,81 +315,114 @@
                 return;
             }
 
-            // 检查是否已存在
-            if (funds.some(f =&gt; f.code === code)) {
+            if (funds.some(f => f.code === code)) {
                 alert('该基金已在列表中！');
                 return;
             }
 
-            const fund = await fetchFundData(code);
-            if (fund) {
-                funds.push(fund);
-                saveToStorage();
-                renderFundTable();
-                input.value = '';
-            }
-        }
-
-        // 获取基金数据
-        async function fetchFundData(code) {
             try {
-                // 使用免费的基金API获取数据
-                const response = await fetch(`https://fundgz.1234567.com.cn/js/${code}.js?rt=${Date.now()}`);
-                const text = await response.text();
-                
-                // 解析JSONP格式数据
-                const jsonMatch = text.match(/jsonpgz\((.*)\);/);
-                if (jsonMatch) {
-                    const data = JSON.parse(jsonMatch[1]);
-                    
-                    const currentPrice = parseFloat(data.gsz || 0);
-                    const lastNetValue = parseFloat(data.dwjz || 0);
-                    const estimatedNetValue = parseFloat(data.gsz || 0);
-                    
-                    // 计算溢价率
-                    const lastNetPremiumRate = lastNetValue &gt; 0 
-                        ? ((currentPrice - lastNetValue) / lastNetValue * 100).toFixed(2) 
-                        : 0;
-                    const estimatedPremiumRate = estimatedNetValue &gt; 0 
-                        ? ((currentPrice - estimatedNetValue) / estimatedNetValue * 100).toFixed(2) 
-                        : 0;
-
-                    return {
-                        code: data.fundcode,
-                        name: data.name,
-                        currentPrice: currentPrice,
-                        lastNetValue: lastNetValue,
-                        lastNetPremiumRate: parseFloat(lastNetPremiumRate),
-                        estimatedNetValue: estimatedNetValue,
-                        estimatedPremiumRate: parseFloat(estimatedPremiumRate),
-                        netValueDate: data.gztime ? data.gztime.split(' ')[0] : ''
-                    };
+                const fund = await fetchFundData(code);
+                if (fund) {
+                    funds.push(fund);
+                    saveToStorage();
+                    renderFundTable();
+                    input.value = '';
                 }
             } catch (error) {
-                console.error('获取基金数据失败:', error);
-                alert(`获取基金${code}数据失败，请检查基金代码是否正确！`);
+                console.error('添加基金失败:', error);
+                alert('获取基金数据失败，请检查基金代码是否正确！');
             }
-            return null;
         }
 
-        // 刷新所有基金数据
+        async function fetchFundData(code) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'jsonpCallback_' + Date.now();
+                
+                window[callbackName] = function(data) {
+                    try {
+                        if (data && data.fundcode) {
+                            const currentPrice = parseFloat(data.gsz || 0);
+                            const lastNetValue = parseFloat(data.dwjz || 0);
+                            const estimatedNetValue = parseFloat(data.gsz || 0);
+                            
+                            const lastNetPremiumRate = lastNetValue > 0 
+                                ? ((currentPrice - lastNetValue) / lastNetValue * 100).toFixed(2) 
+                                : 0;
+                            const estimatedPremiumRate = estimatedNetValue > 0 
+                                ? ((currentPrice - estimatedNetValue) / estimatedNetValue * 100).toFixed(2) 
+                                : 0;
+
+                            const fund = {
+                                code: data.fundcode,
+                                name: data.name,
+                                currentPrice: currentPrice,
+                                lastNetValue: lastNetValue,
+                                lastNetPremiumRate: parseFloat(lastNetPremiumRate),
+                                estimatedNetValue: estimatedNetValue,
+                                estimatedPremiumRate: parseFloat(estimatedPremiumRate),
+                                netValueDate: data.gztime ? data.gztime.split(' ')[0] : ''
+                            };
+                            
+                            delete window[callbackName];
+                            if (script.parentNode) {
+                                script.parentNode.removeChild(script);
+                            }
+                            
+                            resolve(fund);
+                        } else {
+                            delete window[callbackName];
+                            reject(new Error('基金数据无效'));
+                        }
+                    } catch (error) {
+                        delete window[callbackName];
+                        reject(error);
+                    }
+                };
+
+                const script = document.createElement('script');
+                script.src = 'https://fundgz.1234567.com.cn/js/' + code + '.js?rt=' + Date.now() + '&callback=' + callbackName;
+                script.onerror = function() {
+                    delete window[callbackName];
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+                    reject(new Error('获取基金数据失败'));
+                };
+
+                setTimeout(function() {
+                    if (window[callbackName]) {
+                        delete window[callbackName];
+                        if (script.parentNode) {
+                            script.parentNode.removeChild(script);
+                        }
+                        reject(new Error('请求超时'));
+                    }
+                }, 10000);
+
+                document.head.appendChild(script);
+            });
+        }
+
         async function refreshAllFunds() {
             if (funds.length === 0) {
                 alert('列表中没有基金！');
                 return;
             }
 
-            for (let i = 0; i &lt; funds.length; i++) {
-                const newData = await fetchFundData(funds[i].code);
-                if (newData) {
-                    funds[i] = newData;
+            for (let i = 0; i < funds.length; i++) {
+                try {
+                    const newData = await fetchFundData(funds[i].code);
+                    if (newData) {
+                        funds[i] = newData;
+                    }
+                } catch (error) {
+                    console.error('刷新基金 ' + funds[i].code + ' 失败:', error);
                 }
             }
             saveToStorage();
             renderFundTable();
         }
 
-        // 删除选中的基金
         function deleteSelectedFunds() {
             const checkboxes = document.querySelectorAll('.fund-checkbox:checked');
             if (checkboxes.length === 0) {
@@ -381,15 +430,18 @@
                 return;
             }
 
-            if (confirm(`确定要删除选中的 ${checkboxes.length} 只基金吗？`)) {
-                const selectedCodes = Array.from(checkboxes).map(cb =&gt; cb.dataset.code);
-                funds = funds.filter(f =&gt; !selectedCodes.includes(f.code));
+            if (confirm('确定要删除选中的 ' + checkboxes.length + ' 只基金吗？')) {
+                const selectedCodes = Array.from(checkboxes).map(function(cb) {
+                    return cb.dataset.code;
+                });
+                funds = funds.filter(function(f) {
+                    return !selectedCodes.includes(f.code);
+                });
                 saveToStorage();
                 renderFundTable();
             }
         }
 
-        // 切换自动刷新
         function toggleAutoRefresh() {
             const btn = document.getElementById('autoRefreshBtn');
             const interval = parseInt(document.getElementById('refreshInterval').value);
@@ -411,52 +463,47 @@
             }
         }
 
-        // 全选/取消全选
         function toggleSelectAll() {
             const selectAll = document.getElementById('selectAll');
             const checkboxes = document.querySelectorAll('.fund-checkbox');
-            checkboxes.forEach(cb =&gt; cb.checked = selectAll.checked);
+            checkboxes.forEach(function(cb) {
+                cb.checked = selectAll.checked;
+            });
         }
 
-        // 渲染基金表格
         function renderFundTable() {
             const tbody = document.getElementById('fundTableBody');
             
             if (funds.length === 0) {
-                tbody.innerHTML = `
-                    &lt;tr&gt;
-                        &lt;td colspan="9" class="empty-state"&gt;
-                            &lt;strong&gt;暂无基金数据&lt;/strong&gt;
-                            &lt;p&gt;请在上方输入基金代码添加基金&lt;/p&gt;
-                        &lt;/td&gt;
-                    &lt;/tr&gt;
-                `;
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><strong>暂无基金数据</strong><p>请在上方输入基金代码添加基金</p></td></tr>';
                 return;
             }
 
-            tbody.innerHTML = funds.map(fund =&gt; `
-                &lt;tr&gt;
-                    &lt;td&gt;&lt;input type="checkbox" class="fund-checkbox" data-code="${fund.code}"&gt;&lt;/td&gt;
-                    &lt;td&gt;&lt;strong&gt;${fund.code}&lt;/strong&gt;&lt;/td&gt;
-                    &lt;td&gt;${fund.name}&lt;/td&gt;
-                    &lt;td&gt;${fund.currentPrice.toFixed(4)}&lt;/td&gt;
-                    &lt;td&gt;${fund.lastNetValue.toFixed(4)}&lt;/td&gt;
-                    &lt;td class="${fund.lastNetPremiumRate &gt;= 0 ? 'positive' : 'negative'}"&gt;
-                        ${fund.lastNetPremiumRate &gt;= 0 ? '+' : ''}${fund.lastNetPremiumRate.toFixed(2)}%
-                    &lt;/td&gt;
-                    &lt;td&gt;${fund.estimatedNetValue.toFixed(4)}&lt;/td&gt;
-                    &lt;td class="${fund.estimatedPremiumRate &gt;= 0 ? 'positive' : 'negative'}"&gt;
-                        ${fund.estimatedPremiumRate &gt;= 0 ? '+' : ''}${fund.estimatedPremiumRate.toFixed(2)}%
-                    &lt;/td&gt;
-                    &lt;td&gt;${fund.netValueDate}&lt;/td&gt;
-                &lt;/tr&gt;
-            `).join('');
+            const html = funds.map(function(fund) {
+                const lastNetClass = fund.lastNetPremiumRate >= 0 ? 'positive' : 'negative';
+                const estimatedClass = fund.estimatedPremiumRate >= 0 ? 'positive' : 'negative';
+                const lastNetSign = fund.lastNetPremiumRate >= 0 ? '+' : '';
+                const estimatedSign = fund.estimatedPremiumRate >= 0 ? '+' : '';
+                
+                return '<tr>' +
+                    '<td><input type="checkbox" class="fund-checkbox" data-code="' + fund.code + '"></td>' +
+                    '<td><strong>' + fund.code + '</strong></td>' +
+                    '<td>' + fund.name + '</td>' +
+                    '<td>' + fund.currentPrice.toFixed(4) + '</td>' +
+                    '<td>' + fund.lastNetValue.toFixed(4) + '</td>' +
+                    '<td class="' + lastNetClass + '">' + lastNetSign + fund.lastNetPremiumRate.toFixed(2) + '%</td>' +
+                    '<td>' + fund.estimatedNetValue.toFixed(4) + '</td>' +
+                    '<td class="' + estimatedClass + '">' + estimatedSign + fund.estimatedPremiumRate.toFixed(2) + '%</td>' +
+                    '<td>' + fund.netValueDate + '</td>' +
+                    '</tr>';
+            }).join('');
+
+            tbody.innerHTML = html;
         }
 
-        // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
             loadFromStorage();
         });
-    &lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
+    </script>
+</body>
+</html>
